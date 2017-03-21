@@ -5,6 +5,7 @@
 using Eigen::VectorXd;
 using Eigen::MatrixXd;
 using std::vector;
+using namespace std;
 
 Tools::Tools() {}
 
@@ -39,6 +40,9 @@ VectorXd Tools::CalculateRMSE(const vector<VectorXd> &estimations,
 MatrixXd Tools::CalculateJacobian(const VectorXd& x_state) {
     /* Calculate a Jacobian here.*/
     MatrixXd Hj(3,4);
+    Hj << 0, 0, 0, 0,
+          0, 0, 0, 0,
+          0, 0, 0, 0;
 
     //recover state parameters
     float px = x_state(0);
@@ -47,9 +51,15 @@ MatrixXd Tools::CalculateJacobian(const VectorXd& x_state) {
     float vy = x_state(3);
 
     //pre-compute a set of terms to avoid repeated calculation
-    float c1 = fmax(1.0e-8, px*px+py*py);
-    float c2 = fmax(1.0e-8, sqrt(c1));
-    float c3 = fmax(1.0e-8, (c1*c2));
+    float c1 = px*px+py*py;
+    float c2 = sqrt(c1);
+    float c3 = (c1*c2);
+
+    //check division by zero
+    if(fabs(c1) < 0.0001){
+        std::cout << "CalculateJacobian () - Error - Division by Zero" << std::endl;
+        return Hj;
+    }
 
     //compute the Jacobian matrix
     Hj <<  (px/c2), (py/c2), 0, 0,
@@ -65,6 +75,8 @@ MatrixXd Tools::PolarToCartesian(const VectorXd& x) {
     float phi = x[1];
     float rho_dot = x[2];
 
+    cout << rho << ", " << phi << ", " << rho_dot << endl;
+
     float px = rho * cos(phi);
     float py = rho * sin(phi);
 
@@ -74,5 +86,6 @@ MatrixXd Tools::PolarToCartesian(const VectorXd& x) {
     VectorXd x_c(4);
     x_c << px, py, vx, vy;
 
+    cout << "x_c: " << x_c << endl;
     return x_c;
 }

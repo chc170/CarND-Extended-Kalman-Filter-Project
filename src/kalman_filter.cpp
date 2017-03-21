@@ -3,6 +3,7 @@
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
+using namespace std;
 
 KalmanFilter::KalmanFilter() {}
 
@@ -27,9 +28,13 @@ void KalmanFilter::Predict() {
 void KalmanFilter::Update(const VectorXd &z) {
     /* update the state by using Kalman Filter equations */
     MatrixXd I = MatrixXd::Identity(x_.size(), x_.size());
-    MatrixXd y = z - H_ * x_;
+    cout << "I: " << I << endl;
+    MatrixXd y = z - (H_ * x_);
+    cout << "y: " << y << endl;
     MatrixXd S = H_ * P_ * H_.transpose() + R_;
+    cout << "S: " << S << endl;
     MatrixXd K = P_ * H_.transpose() * S.inverse();
+    cout << "K: " << K << endl;
 
     x_ = x_ + (K * y);
     P_ = (I - K * H_) * P_;
@@ -57,12 +62,8 @@ VectorXd KalmanFilter::h(VectorXd &x) {
 
     float rho, theta, rho_dot;
 
-    rho = sqrt(px*px + py*py);
-    if (fabs(rho) < 0.0001) {
-        std::cout << "Division by zero" << std::endl;
-        return h_x;
-    }
-    theta = atan(py/px);
+    rho = fmax(1.0e-5, sqrt(px*px + py*py));
+    theta = fmax(1.0e-8, atan(py/px));
     rho_dot = (px*vx + py*vy) / rho;
     h_x << rho, theta, rho_dot;
 
