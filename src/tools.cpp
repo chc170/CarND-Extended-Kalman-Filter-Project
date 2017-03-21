@@ -47,25 +47,19 @@ MatrixXd Tools::CalculateJacobian(const VectorXd& x_state) {
     float vy = x_state(3);
 
     //pre-compute a set of terms to avoid repeated calculation
-    float c1 = px*px+py*py;
-    float c2 = sqrt(c1);
-    float c3 = (c1*c2);
-
-    //check division by zero
-    if(fabs(c1) < 0.0001){
-        cout << "CalculateJacobian () - Error - Division by Zero" << endl;
-        return Hj;
-    }
+    float c1 = fmax(1.0e-8, px*px+py*py);
+    float c2 = fmax(1.0e-8, sqrt(c1));
+    float c3 = fmax(1.0e-8, (c1*c2));
 
     //compute the Jacobian matrix
-    Hj << (px/c2), (py/c2), 0, 0,
+    Hj <<  (px/c2), (py/c2), 0, 0,
           -(py/c1), (px/c1), 0, 0,
           py*(vx*py - vy*px)/c3, px*(px*vy - py*vx)/c3, px/c2, py/c2;
 
     return Hj;
 }
 
-MatrixXd Tools::PolarToCartesian(MatrixXd& x) {
+MatrixXd Tools::PolarToCartesian(const VectorXd& x) {
 
     float rho = x[0];
     float phi = x[1];
