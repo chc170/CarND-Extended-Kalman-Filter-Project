@@ -19,39 +19,39 @@ void KalmanFilter::Init(VectorXd &x_in, MatrixXd &P_in, MatrixXd &F_in,
   Q_ = Q_in;
 }
 
+// Predict the state
 void KalmanFilter::Predict() {
-    /* predict the state */
+
     x_ = F_ * x_;
     P_ = F_ * P_ * F_.transpose() + Q_;
 }
 
+// Update state matrix by using Kalman Filter equations
 void KalmanFilter::Update(const VectorXd &z) {
-    /* update the state by using Kalman Filter equations */
-    MatrixXd I = MatrixXd::Identity(x_.size(), x_.size());
-    cout << "I: " << I << endl;
+
     MatrixXd y = z - (H_ * x_);
-    cout << "y: " << y << endl;
     MatrixXd S = H_ * P_ * H_.transpose() + R_;
-    cout << "S: " << S << endl;
     MatrixXd K = P_ * H_.transpose() * S.inverse();
-    cout << "K: " << K << endl;
-
-    x_ = x_ + (K * y);
-    P_ = (I - K * H_) * P_;
-}
-
-void KalmanFilter::UpdateEKF(const VectorXd &z) {
-    /* update the state by using Extended Kalman Filter equations */
     MatrixXd I = MatrixXd::Identity(x_.size(), x_.size());
-    MatrixXd y = z - h(x_);
-    MatrixXd S = H_ * P_ * H_.transpose() + R_;
-    MatrixXd K = P_ * H_.transpose() * S.inverse();
 
     x_ = x_ + (K * y);
     P_ = (I - K * H_) * P_;
 }
 
-VectorXd KalmanFilter::h(VectorXd &x) {
+// Update state matrix by using Extended Kalman Filter equations
+void KalmanFilter::UpdateEKF(const VectorXd &z) {
+
+    MatrixXd y = z - h_(x_);
+    MatrixXd S = H_ * P_ * H_.transpose() + R_;
+    MatrixXd K = P_ * H_.transpose() * S.inverse();
+    MatrixXd I = MatrixXd::Identity(x_.size(), x_.size());
+
+    x_ = x_ + (K * y);
+    P_ = (I - K * H_) * P_;
+}
+
+// Convert Cartesian to polar coordinates
+VectorXd KalmanFilter::h_(VectorXd &x) {
 
     VectorXd h_x(3);
 
@@ -62,11 +62,15 @@ VectorXd KalmanFilter::h(VectorXd &x) {
 
     float rho, theta, rho_dot;
 
-    rho = fmax(1.0e-5, sqrt(px*px + py*py));
-    theta = fmax(1.0e-8, atan(py/px));
-    rho_dot = (px*vx + py*vy) / rho;
+    rho     = sqrt(px*px + py*py);
+    theta   = 0;
+    rho_dot = 0;
+
+    if (rho > 1.0e-3) {
+        theta   = atan(py/px);
+        rho_dot = (px*vx + py*vy) / rho;
+    }
+
     h_x << rho, theta, rho_dot;
-
     return h_x;
-
 }

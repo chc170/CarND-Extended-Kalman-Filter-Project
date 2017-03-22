@@ -18,7 +18,7 @@ using std::vector;
 #define SIGMA_AX 9
 #define SIGMA_AY 9
 
-/*
+/**
  * Constructor.
  */
 FusionEKF::FusionEKF() {
@@ -41,15 +41,20 @@ FusionEKF::FusionEKF() {
                 0, RADAR_VAR_PHI, 0,
                 0, 0, RADAR_VAR_RHO_DOT;
 
-    //
+    // measurement matrix - laser
     H_laser_ << 1, 0, 0, 0,
-               0, 1, 0, 0;
+                0, 1, 0, 0;
 
     // Kalman filter variables
     ekf_.x_ = VectorXd(4);
     ekf_.P_ = MatrixXd(4, 4);
     ekf_.Q_ = MatrixXd(4, 4);
     ekf_.F_ = MatrixXd(4, 4);
+
+    ekf_.P_ << 1, 0, 0, 0,
+               0, 1, 0, 0,
+               0, 0, 1000, 0,
+               0, 0, 0, 1000;
 }
 
 /**
@@ -81,7 +86,7 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
 
             VectorXd polar(3);
             polar << rho, phi, rho_dot;
-            cout << "Polar: " << polar << endl;
+
             ekf_.x_ = tools.PolarToCartesian(polar);
             cout << "x_: " << ekf_.x_ << endl;
         }
@@ -93,10 +98,6 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
             cout << "x_: " << ekf_.x_ << endl;
         }
 
-        ekf_.P_ << 1, 0, 0, 0,
-                   0, 1, 0, 0,
-                   0, 0, 1000, 0,
-                   0, 0, 0, 1000;
 
         previous_timestamp_ = measurement_pack.timestamp_;
         // done initializing, no need to predict or update
@@ -106,21 +107,19 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
 
     /*****************************************************************************
      *  Prediction
+     *
+     * Update the state transition matrix F according to the new elapsed time.
+     * - Time is measured in seconds.
+     * Update the process noise covariance matrix.
+     * Use sigma_ax = 9 and sigma_ay = 9 for your Q matrix.
      ****************************************************************************/
-
-    /**
-       * Update the state transition matrix F according to the new elapsed time.
-        - Time is measured in seconds.
-       * Update the process noise covariance matrix.
-       * Use sigma_ax = 9 and sigma_ay = 9 for your Q matrix.
-     */
 
     // elapsed time (dt)
     float dt = (measurement_pack.timestamp_ - previous_timestamp_) / 1000000.0;
+    previous_timestamp_ = measurement_pack.timestamp_;
     if (dt == 0) {
         return;
     }
-    previous_timestamp_ = measurement_pack.timestamp_;
 
     float dt2 = dt * dt;
     float dt3 = dt * dt2;
@@ -138,58 +137,39 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
                dt3/2 * SIGMA_AX, 0, dt2 * SIGMA_AX, 0,
                0, dt3/2 * SIGMA_AY, 0, dt2 * SIGMA_AY;
 
-    cout << "F_: " << ekf_.F_ << endl;
-    cout << "Q_: " << ekf_.Q_ << endl;
-    cout << "Predict...\n";
     ekf_.Predict();
-    cout << "x_: " << ekf_.x_ << endl;
+
     /*****************************************************************************
      *  Update
+     *
+     * Use the sensor type to perform the update step.
+     * Update the state and covariance matrices.
      ****************************************************************************/
-
-    /**
-       * Use the sensor type to perform the update step.
-       * Update the state and covariance matrices.
-     */
 
     if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
         // Radar updates
-        float rho     = measurement_pack.raw_measurements_[0];
-        float phi     = measurement_pack.raw_measurements_[1];
-        float rho_dot = measurement_pack.raw_measurements_[2];
-
         VectorXd polar(3);
-        polar << rho, phi, rho_dot;
+        polar = measurement_pack.raw_measurements_;
 
         // Apply Jacobian matrix to current state
-        cout << "Jacobian...\n";
         Hj_ = tools.CalculateJacobian(ekf_.x_);
 
         // Update Kalman filter variables
         ekf_.H_ = Hj_;
         ekf_.R_ = R_radar_;
 
-        if (Hj_.isZero()) {
-            return;
-        }
+        if (Hj_.isZero()) { return; }
 
-        // Update
-        cout << "Update EKF...\n";
         ekf_.UpdateEKF(polar);
     } else {
         // Laser updates
-        float px = measurement_pack.raw_measurements_[0];
-        float py = measurement_pack.raw_measurements_[1];
-
         VectorXd z(2);
-        z << px, py;
+        z = measurement_pack.raw_measurements_;
 
         // Update Kalman filter variables
         ekf_.H_ = H_laser_;
         ekf_.R_ = R_laser_;
 
-        // Update
-        cout << "Update...\n";
         ekf_.Update(z);
     }
 
