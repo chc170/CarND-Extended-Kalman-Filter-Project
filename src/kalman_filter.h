@@ -65,7 +65,7 @@ public:
   void UpdateEKF(const Eigen::VectorXd &z);
 
   /**
-   * Calculate
+   * Convert Cartesion to polar coordinates.
    */
   Eigen::VectorXd h_(Eigen::VectorXd &x);
 };
