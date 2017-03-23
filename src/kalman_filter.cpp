@@ -66,11 +66,11 @@ VectorXd KalmanFilter::h_(VectorXd &x) {
     // generate greater errors in bearing angle
     // which should be ignore by setting theta
     // to 0.
-    rho     = fmax(1.0e-8, sqrt(px*px + py*py));
-    rho_dot = rho_dot = (px*vx + py*vy) / rho;;
+    rho     = sqrt(px*px + py*py);
+    rho_dot = 0;
     theta   = 0;
 
-    if (rho > 1.0e-3) {
+    if (rho > 1.0e-5) {
         theta   = atan(py/px);
         rho_dot = (px*vx + py*vy) / rho;
     }
