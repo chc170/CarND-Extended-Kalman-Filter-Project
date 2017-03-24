@@ -70,7 +70,7 @@ VectorXd KalmanFilter::h_(VectorXd &x) {
     rho_dot = 0;
     theta   = 0;
 
-    if (rho > 1.0e-5) {
+    if (rho > 1.0e-8) {
         theta   = atan(py/px);
         rho_dot = (px*vx + py*vy) / rho;
     }

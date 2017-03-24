@@ -69,8 +69,6 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
 
     if (!is_initialized_) {
 
-        ekf_.x_ << 1, 1, 1, 1;
-
         previous_timestamp_ = measurement_pack.timestamp_;
 
          // Initialize the state ekf_.x_ with the first measurement.
@@ -104,30 +102,34 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
      * Update the state transition matrix F according to the new elapsed time.
      * - Time is measured in seconds.
      * Update the process noise covariance matrix.
+     *
+     * IMPORTANT! We skip prediction process when dt is too small.
      ****************************************************************************/
 
     // elapsed time (dt)
     float dt = (measurement_pack.timestamp_ - previous_timestamp_) / 1000000.0;
     previous_timestamp_ = measurement_pack.timestamp_;
-    if (dt == 0) { return; }
 
-    float dt2 = dt * dt;
-    float dt3 = dt * dt2;
-    float dt4 = dt * dt3;
+    if (dt > 0.001) {
 
-    // Update state transition matrix (F) with dt
-    ekf_.F_ <<  1,  0, dt,  0,
-                0,  1,  0, dt,
-                0,  0,  1,  0,
-                0,  0,  0,  1;
+        float dt2 = dt * dt;
+        float dt3 = dt * dt2;
+        float dt4 = dt * dt3;
 
-    // Updte covariance matrix (Q) with dt
-    ekf_.Q_ << dt4/4 * SIGMA_AX, 0, dt3/2 * SIGMA_AX, 0,
-               0, dt4/4 * SIGMA_AY, 0, dt3/2 * SIGMA_AY,
-               dt3/2 * SIGMA_AX, 0, dt2 * SIGMA_AX, 0,
-               0, dt3/2 * SIGMA_AY, 0, dt2 * SIGMA_AY;
+        // Update state transition matrix (F) with dt
+        ekf_.F_ <<  1,  0, dt,  0,
+                    0,  1,  0, dt,
+                    0,  0,  1,  0,
+                    0,  0,  0,  1;
 
-    ekf_.Predict();
+        // Updte covariance matrix (Q) with dt
+        ekf_.Q_ << dt4/4 * SIGMA_AX, 0, dt3/2 * SIGMA_AX, 0,
+                   0, dt4/4 * SIGMA_AY, 0, dt3/2 * SIGMA_AY,
+                   dt3/2 * SIGMA_AX, 0, dt2 * SIGMA_AX, 0,
+                   0, dt3/2 * SIGMA_AY, 0, dt2 * SIGMA_AY;
+
+        ekf_.Predict();
+    }
 
     /*****************************************************************************
      *  Update
